@@ -113,39 +113,42 @@ def draw_simplified_dag(G, stats, case_name, output_file=None, max_nodes=1000):
     # 如果节点太多，进行采样以提高绘图速度
     if len(G.nodes) > max_nodes:
         print(f"节点数量过多({len(G.nodes)}个)，将采样{max_nodes}个节点进行可视化...")
-        # 选择前max_nodes个节点及其相关的边
+        # 创建一个全新的图，而不是修改子图
+        H = nx.DiGraph()
+        
+        # 选择前max_nodes个节点
         sampled_nodes = list(G.nodes)[:max_nodes]
-        # 创建子图的副本，而不是视图，这样可以修改
-        H = G.subgraph(sampled_nodes).copy()
-        # 找出这些节点的邻居，以保留重要的连接
-        neighbors = set()
+        
+        # 添加采样节点及其属性
         for node in sampled_nodes:
-            neighbors.update(G.neighbors(node))
-        # 确保邻居节点也在图中
-        for neighbor in neighbors:
-            if neighbor not in H:
-                # 获取原始节点的属性，如果没有color属性则设置默认值
-                node_attrs = dict(G.nodes[neighbor])
-                if 'color' not in node_attrs:
-                    # 为不同类型的操作设置不同的颜色
-                    color_map = {
-                        'ALLOC': '#FF9999',  # 浅红色
-                        'FREE': '#FF6666',  # 红色
-                        'COPY_IN': '#99CCFF',  # 浅蓝色
-                        'COPY_OUT': '#99FF99',  # 浅绿色
-                        'MOVE': '#FFFF99',  # 浅黄色
-                        'MATMUL': '#FF99FF',  # 浅紫色
-                        'FLASH_ATTENTION': '#99FFCC',  # 浅青色
-                        'CONV': '#FFCC99'  # 浅橙色
-                    }
-                    op_type = node_attrs.get('op_type', '')
-                    node_attrs['color'] = color_map.get(op_type, '#CCCCCC')  # 默认灰色
-                
-                H.add_node(neighbor, **node_attrs)
-                # 添加与采样节点相连的边
-                for edge in G.edges(neighbor):
-                    if edge[1] in H or edge[0] in H:
-                        H.add_edge(*edge)
+            # 确保所有节点都有必要的属性
+            node_attrs = dict(G.nodes[node])
+            op_type = node_attrs.get('op_type', 'UNKNOWN')
+            
+            # 设置颜色属性
+            color_map = {
+                'ALLOC': '#FF9999',  # 浅红色
+                'FREE': '#FF6666',  # 红色
+                'COPY_IN': '#99CCFF',  # 浅蓝色
+                'COPY_OUT': '#99FF99',  # 浅绿色
+                'MOVE': '#FFFF99',  # 浅黄色
+                'MATMUL': '#FF99FF',  # 浅紫色
+                'FLASH_ATTENTION': '#99FFCC',  # 浅青色
+                'CONV': '#FFCC99',  # 浅橙色
+                'UNKNOWN': '#CCCCCC'  # 未知类型默认灰色
+            }
+            
+            # 确保有color和op_type属性
+            node_attrs['color'] = color_map.get(op_type, '#CCCCCC')
+            node_attrs['op_type'] = op_type
+            
+            H.add_node(node, **node_attrs)
+        
+        # 添加这些节点之间的边
+        for edge in G.edges:
+            if edge[0] in H and edge[1] in H:
+                H.add_edge(*edge)
+        
         G = H
     
     # 使用spring布局，适合大型图
