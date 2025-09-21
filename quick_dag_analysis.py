@@ -124,7 +124,24 @@ def draw_simplified_dag(G, stats, case_name, output_file=None, max_nodes=1000):
         # 确保邻居节点也在图中
         for neighbor in neighbors:
             if neighbor not in H:
-                H.add_node(neighbor, **G.nodes[neighbor])
+                # 获取原始节点的属性，如果没有color属性则设置默认值
+                node_attrs = dict(G.nodes[neighbor])
+                if 'color' not in node_attrs:
+                    # 为不同类型的操作设置不同的颜色
+                    color_map = {
+                        'ALLOC': '#FF9999',  # 浅红色
+                        'FREE': '#FF6666',  # 红色
+                        'COPY_IN': '#99CCFF',  # 浅蓝色
+                        'COPY_OUT': '#99FF99',  # 浅绿色
+                        'MOVE': '#FFFF99',  # 浅黄色
+                        'MATMUL': '#FF99FF',  # 浅紫色
+                        'FLASH_ATTENTION': '#99FFCC',  # 浅青色
+                        'CONV': '#FFCC99'  # 浅橙色
+                    }
+                    op_type = node_attrs.get('op_type', '')
+                    node_attrs['color'] = color_map.get(op_type, '#CCCCCC')  # 默认灰色
+                
+                H.add_node(neighbor, **node_attrs)
                 # 添加与采样节点相连的边
                 for edge in G.edges(neighbor):
                     if edge[1] in H or edge[0] in H:
@@ -134,8 +151,26 @@ def draw_simplified_dag(G, stats, case_name, output_file=None, max_nodes=1000):
     # 使用spring布局，适合大型图
     pos = nx.spring_layout(G, k=0.1, iterations=30, seed=42)
     
-    # 获取节点颜色
-    colors = [G.nodes[node]['color'] for node in G.nodes]
+    # 获取节点颜色，确保所有节点都有颜色
+    colors = []
+    for node in G.nodes:
+        # 直接使用get方法获取属性，设置默认值以避免KeyError
+        node_attrs = G.nodes[node]
+        op_type = node_attrs.get('op_type', 'UNKNOWN')
+        
+        # 根据操作类型设置颜色
+        color_map = {
+            'ALLOC': '#FF9999',  # 浅红色
+            'FREE': '#FF6666',  # 红色
+            'COPY_IN': '#99CCFF',  # 浅蓝色
+            'COPY_OUT': '#99FF99',  # 浅绿色
+            'MOVE': '#FFFF99',  # 浅黄色
+            'MATMUL': '#FF99FF',  # 浅紫色
+            'FLASH_ATTENTION': '#99FFCC',  # 浅青色
+            'CONV': '#FFCC99',  # 浅橙色
+            'UNKNOWN': '#CCCCCC'  # 未知类型默认灰色
+        }
+        colors.append(color_map.get(op_type, '#CCCCCC'))
     
     # 创建画布
     plt.figure(figsize=(16, 12))
