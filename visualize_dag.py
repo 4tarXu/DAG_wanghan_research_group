@@ -190,7 +190,7 @@ if __name__ == "__main__":
     # 加载DAG数据
     data = load_dag_from_json(json_file)
     
-    # 创建DAG图
+    # 创建DAG图1
     G = create_dag_graph(data)
     
     # 分析DAG结构
